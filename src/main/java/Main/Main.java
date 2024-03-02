@@ -14,6 +14,7 @@ public class Main {
             e.printStackTrace();
         }
 
+        System.out.println("TeleTubeBot successfully started!");
     }
 
 }

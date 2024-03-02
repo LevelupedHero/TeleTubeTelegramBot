@@ -34,21 +34,63 @@ public class TeleTubeBot extends TelegramLongPollingBot {
     public void onUpdateReceived(Update update) {
         // Проверяем, содержит ли update сообщение
         if (update.hasMessage()) {
-            CopyMessage copyMsg = new CopyMessage();
-
             Message msg = update.getMessage();                      // Сообщение update'а
             Long usrId = update.getMessage().getFrom().getId();     // ID чата - источника update
 
-            copyMsg.setChatId(usrId.toString()); // Целевой чат - чат с оригинальным сообщением
-            copyMsg.setFromChatId(usrId.toString()); // Чат-источник
-            copyMsg.setMessageId(msg.getMessageId()); // Ресурс - сообщение, вызвавщее update
+            SendMessage sendMsg = new SendMessage();
+            sendMsg.setChatId(usrId.toString());
+
+            if (msg.isCommand()) {
+                switch(msg.getText()) {
+                    case ("/start"):
+                        sendMsg.setText("Добро пожаловать! Выберите раздел в Меню.");
+                        setMainMenuReplyKeyboard(sendMsg);
+                        break;
+                    default:
+                        sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
+                        break;
+                }
+            }
 
             try {
-                execute(copyMsg);
+                execute(sendMsg);
             }
             catch (TelegramApiException e) {
                 e.printStackTrace();
             }
         }
     }
+
+    public void setMainMenuReplyKeyboard(SendMessage sendMsg) {
+        // Создаем клавиатуру и привязываем к сообщению
+        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
+        sendMsg.setReplyMarkup(replyKeyboardMarkup);
+        replyKeyboardMarkup.setSelective(true);
+        replyKeyboardMarkup.setResizeKeyboard(true);
+        replyKeyboardMarkup.setOneTimeKeyboard(true); // Setting false
+
+        // Создаем список строк клавиатуры
+        List<KeyboardRow> keyboard = new ArrayList<>();
+
+        // Добавляю кнопки в список
+        KeyboardRow keyboardRow1 = new KeyboardRow();
+        keyboardRow1.add(new KeyboardButton("Рекомендации"));
+        keyboard.add(keyboardRow1);
+
+        KeyboardRow keyboardRow2 = new KeyboardRow();
+        keyboardRow2.add(new KeyboardButton("Топ популярных видео"));
+        keyboard.add(keyboardRow2);
+
+        KeyboardRow keyboardRow3 = new KeyboardRow();
+        keyboardRow3.add(new KeyboardButton("Мои видео"));
+        keyboard.add(keyboardRow3);
+
+        KeyboardRow keyboardRow4 = new KeyboardRow();
+        keyboardRow4.add(new KeyboardButton("Случайное видео"));
+        keyboard.add(keyboardRow4);
+
+        // Устанавливаем список клавиатуре
+        replyKeyboardMarkup.setKeyboard(keyboard);
+    }
+
 }
