@@ -35,16 +35,19 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         // Проверяем, содержит ли update сообщение
         if (update.hasMessage()) {
             Message msg = update.getMessage();                      // Сообщение update'а
-            Long usrId = update.getMessage().getFrom().getId();     // ID чата - источника update
+            Long usrId = update.getMessage().getFrom().getId();     // ID чата-источника update
 
             SendMessage sendMsg = new SendMessage();
             sendMsg.setChatId(usrId.toString());
 
-            if (msg.isCommand()) {
+            if (msg.hasText()) {
                 switch(msg.getText()) {
                     case ("/start"):
                         sendMsg.setText("Добро пожаловать! Выберите раздел в Меню.");
                         setMainMenuReplyKeyboard(sendMsg);
+                        break;
+                    case ("Случайное видео"):
+                        sendTeletubeVideo(usrId, "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\5791410976-20451416.mp4");
                         break;
                     default:
                         sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
@@ -52,13 +55,36 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                 }
             }
 
-            try {
-                execute(sendMsg);
-            }
-            catch (TelegramApiException e) {
-                e.printStackTrace();
+            // Отправить объект сообщения sendMsg, если ему были присвоены текст и ИД чата
+            if (sendMsg.getText() != null && sendMsg.getChatId() != null) {
+                try {
+                    execute(sendMsg);
+                }
+                catch (TelegramApiException e) {
+                    e.printStackTrace();
+                }
             }
         }
+    }
+
+    // Отправляет пользователю текстовое сообщение
+    // Принимает на вход:   chatId - ID чата
+    //                      txt - текст сообщения
+    // Возвращает объект сообщения для возможности его дальнейшего удаления
+    public Message sendTextMessage(Long chatId, String txt) {
+        SendMessage sendMsg = SendMessage.builder()
+                .chatId(chatId.toString())
+                .text(txt).build();
+
+        Message sendOutMsg;
+        try {
+            sendOutMsg = execute(sendMsg);
+        }
+        catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+
+        }
+        return sendOutMsg;
     }
 
     public void setMainMenuReplyKeyboard(SendMessage sendMsg) {
@@ -91,6 +117,44 @@ public class TeleTubeBot extends TelegramLongPollingBot {
 
         // Устанавливаем список клавиатуре
         replyKeyboardMarkup.setKeyboard(keyboard);
+    }
+
+    public void sendTeletubeVideo(Long chatId, String filePath) {
+
+        // Отправляю в чат сообщение о том, что видео готовиться к отправке
+        Message temporaryMsg = sendTextMessage(chatId, "Видео загружается для просмотра, подождите немного...");
+
+        // Загружаю видео с компьютера
+        File file = new File(filePath);
+        SendVideo sendVideo = new SendVideo();
+        sendVideo.setChatId(chatId.toString());
+        sendVideo.setVideo(new InputFile(file, file.getName()));
+
+//                sendVideo.setDuration();
+//                sendVideo.setWidth();
+//                sendVideo.setHeight();
+
+        // Отправляю видео
+        try {
+            execute(sendVideo);
+        }
+        catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Удаляю из чата сообщение о подготовке видео
+        DeleteMessage deleteMsg = new DeleteMessage();
+        deleteMsg.setChatId(chatId.toString());
+        deleteMsg.setMessageId(temporaryMsg.getMessageId());
+        try {
+            execute(deleteMsg);
+        }
+        catch (TelegramApiException e) {
+            throw new RuntimeException(e);
+        }
+
+        // Отправляю сообщение, содержащие название видео
+        sendTextMessage(chatId, file.getName());
     }
 
 }
