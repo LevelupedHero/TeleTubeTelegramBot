@@ -12,6 +12,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
+import java.sql.*;
+
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
@@ -47,7 +49,24 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                         setMainMenuReplyKeyboard(sendMsg);
                         break;
                     case ("Случайное видео"):
-                        sendTeletubeVideo(usrId, "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\5791410976-20451416.mp4");
+                        sendTeletubeVideo(usrId, "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\5791410976-20897428.mp4");
+                        break;
+                    case ("/selectAll"):
+                        try {
+                            var results = SelectAllFromDb();
+
+                            String text = new String();
+                            while(results.next()) {
+                                if (text != null) {
+                                    text += "\n";
+                                }
+                                text += results.getString(2) + " - " + results.getString(3) + " y.o.";
+                            }
+                            sendTextMessage(usrId, text);
+                        }
+                        catch (SQLException e) {
+                            e.printStackTrace();
+                        }
                         break;
                     default:
                         sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
@@ -156,5 +175,22 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         // Отправляю сообщение, содержащие название видео
         sendTextMessage(chatId, file.getName());
     }
+
+    private ResultSet SelectAllFromDb() throws SQLException {
+
+        // Устанавливаю соединение
+        Connection connection = DriverManager.getConnection(
+                "jdbc:mysql://127.0.0.1:3306/teletubetelegrambot",
+                "teletubetelegrambot",
+                "5FTj7SL.uvZ/0vWb");
+
+        // Оправляю запрос и получаю ответ
+        Statement statement = connection.createStatement();
+        ResultSet results = statement.executeQuery("SELECT * FROM test_users");
+
+        // Возвращаю ответ в форме ResultSet
+        return results;
+    }
+
 
 }
