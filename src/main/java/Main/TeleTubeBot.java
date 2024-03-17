@@ -1,6 +1,6 @@
 package Main;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
-import org.telegram.telegrambots.meta.api.methods.CopyMessage;
+import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
 import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
@@ -12,15 +12,15 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
-import java.sql.*;
-
 import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
-
-import static com.google.common.base.Predicates.or;
+import java.util.Random;
 
 public class TeleTubeBot extends TelegramLongPollingBot {
+
+    // Метаданные
+    boolean isWaitingVideo = false;
 
     @Override
     public String getBotUsername() {
@@ -37,10 +37,13 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         // Проверяем, содержит ли update сообщение
         if (update.hasMessage()) {
             Message msg = update.getMessage();                      // Сообщение update'а
-            Long usrId = update.getMessage().getFrom().getId();     // ID чата-источника update
+            var usr = update.getMessage().getFrom();
+            Long usrId = usr.getId();     // ID чата-источника update
 
             SendMessage sendMsg = new SendMessage();
             sendMsg.setChatId(usrId.toString());
+
+            System.out.println(update);
 
             if (msg.hasText()) {
                 switch(msg.getText()) {
@@ -51,30 +54,52 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                     case ("Случайное видео"):
                         sendTeletubeVideo(usrId, "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\5791410976-20897428.mp4");
                         break;
-                    case ("/selectAll"):
-                        try {
-                            var results = SelectAllFromDb();
-
-                            String text = new String();
-                            while(results.next()) {
-                                if (text != null) {
-                                    text += "\n";
-                                }
-                                text += results.getString(2) + " - " + results.getString(3) + " y.o.";
-                            }
-                            sendTextMessage(usrId, text);
-                        }
-                        catch (SQLException e) {
-                            e.printStackTrace();
-                        }
+                    case ("/uploadVideo"):
+                        sendTextMessage(usrId, "Отправьте ваше видео сюда в чат, название к видео укажите в описании.");
+                        isWaitingVideo = true; // В isWaitingVideo станавливаю true, чтобы в следующем сообщении пользователя ждать видео
                         break;
+//                    case ("/selectAll"):
+//                        try {
+//                            var results = ActionsWithDB.SelectAllFromDB();
+//
+//                            String text = new String();
+//                            while(results.next()) {
+//                                if (text != null) {
+//                                    text += "\n";
+//                                }
+//                                text += results.getString(2) + " - " + results.getString(3) + " y.o.";
+//                            }
+//                            sendTextMessage(usrId, text);
+//                        }
+//                        catch (SQLException e) {
+//                            e.printStackTrace();
+//                        }
+//                        break;
+//                    case ("/addMe"):
+//                        ActionsWithDB.AddNewChatIntoDB(usr);
+//                        break;
                     default:
                         sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
                         break;
                 }
             }
+            // Если update не содержит текст, но содержит видео
+            else if (isWaitingVideo || msg.hasVideo()) {
+                isWaitingVideo = false;
+                sendTextMessage(usrId, "Загружаю видео на сервер, подождите...");
 
-            // Отправить объект сообщения sendMsg, если ему были присвоены текст и ИД чата
+                // Выполняю скачивание пользовательского видео на сервер
+                // И информирую пользователя о результате скачивания (успешно или нет)
+                if (downloadVideoIntoFileSystem(update.getMessage())) {
+                    sendTextMessage(usrId, "Ваше видео успешно загружено!");
+                }
+                else {
+                    sendTextMessage(usrId, "Произошла ошибка при скачивании! Попробуйте повторить позже.");
+                }
+
+            }
+
+            // Отправляю объект сообщения sendMsg, если ему были присвоены текст и ИД чата
             if (sendMsg.getText() != null && sendMsg.getChatId() != null) {
                 try {
                     execute(sendMsg);
@@ -82,6 +107,11 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                 catch (TelegramApiException e) {
                     e.printStackTrace();
                 }
+            }
+
+            if (isWaitingVideo) {
+                isWaitingVideo = false;
+                sendTextMessage(usrId, "Видео не обнаржено");
             }
         }
     }
@@ -138,6 +168,30 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         replyKeyboardMarkup.setKeyboard(keyboard);
     }
 
+    public boolean downloadVideoIntoFileSystem(Message message) {
+        try {
+            // Загружаю видеофайл на сервер
+            GetFile getVideoFile = new GetFile();
+            getVideoFile.setFileId(message.getVideo().getFileId());
+            var sourceFilePath = execute(getVideoFile).getFilePath();
+
+            // Получаю ID пользователя
+            int userDBId = ActionsWithDB.SelectOrInsertChatIntoDB(message.getFrom());
+
+            String destinationFilePath = "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\" + userDBId + "\\" + generateString(12) + ".mp4";
+            downloadFile(sourceFilePath, new File(destinationFilePath));
+
+            // Вношу запись о новом видео в базу данных
+            ActionsWithDB.AddNewVideoInfoIntoDB(message, destinationFilePath);
+
+            return true;
+        }
+        catch (Exception e) {
+            e.printStackTrace();
+            return false;
+        }
+    }
+
     public void sendTeletubeVideo(Long chatId, String filePath) {
 
         // Отправляю в чат сообщение о том, что видео готовиться к отправке
@@ -176,21 +230,21 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         sendTextMessage(chatId, file.getName());
     }
 
-    private ResultSet SelectAllFromDb() throws SQLException {
+    private static String generateString(int length) {
+        Random rng = new Random();
 
-        // Устанавливаю соединение
-        Connection connection = DriverManager.getConnection(
-                "jdbc:mysql://127.0.0.1:3306/teletubetelegrambot",
-                "teletubetelegrambot",
-                "5FTj7SL.uvZ/0vWb");
+        // Заполняю строку characters символами нижнего регистра
+        String characters = "";
+        for (char c = 'a'; c <= 'z'; c++) {
+            characters += c;
+        }
 
-        // Оправляю запрос и получаю ответ
-        Statement statement = connection.createStatement();
-        ResultSet results = statement.executeQuery("SELECT * FROM test_users");
-
-        // Возвращаю ответ в форме ResultSet
-        return results;
+        char[] text = new char[length];
+        for (int i = 0; i < length; i++)
+        {
+            text[i] = characters.charAt(rng.nextInt(characters.length()));
+        }
+        return new String(text);
     }
-
 
 }
