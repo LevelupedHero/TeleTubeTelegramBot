@@ -13,6 +13,8 @@ import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.Keyboard
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
@@ -58,26 +60,9 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                         sendTextMessage(usrId, "Отправьте ваше видео сюда в чат, название к видео укажите в описании.");
                         isWaitingVideo = true; // В isWaitingVideo станавливаю true, чтобы в следующем сообщении пользователя ждать видео
                         break;
-//                    case ("/selectAll"):
-//                        try {
-//                            var results = ActionsWithDB.SelectAllFromDB();
-//
-//                            String text = new String();
-//                            while(results.next()) {
-//                                if (text != null) {
-//                                    text += "\n";
-//                                }
-//                                text += results.getString(2) + " - " + results.getString(3) + " y.o.";
-//                            }
-//                            sendTextMessage(usrId, text);
-//                        }
-//                        catch (SQLException e) {
-//                            e.printStackTrace();
-//                        }
-//                        break;
-//                    case ("/addMe"):
-//                        ActionsWithDB.AddNewChatIntoDB(usr);
-//                        break;
+                    case ("/showAllVideos"):
+                        sendMsg.setText(makeVideoList());
+                        break;
                     default:
                         sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
                         break;
@@ -190,6 +175,27 @@ public class TeleTubeBot extends TelegramLongPollingBot {
             e.printStackTrace();
             return false;
         }
+    }
+
+    public String makeVideoList() {
+        String outputText = "";
+
+        try {
+            ResultSet videosSet = ActionsWithDB.SelectVideosFromDB();
+
+            int videoNumber = 0;
+            while (videosSet.next()) {
+                videoNumber++;
+                outputText += videoNumber + ". " + videosSet.getString("Name") + " • " + videosSet.getString("FirstName") + " \"" + videosSet.getString("Username") + "\" " + videosSet.getString("LastName") + "\n";
+            }
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            return outputText;
+        }
+
     }
 
     public void sendTeletubeVideo(Long chatId, String filePath) {

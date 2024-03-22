@@ -16,33 +16,9 @@ public class ActionsWithDB {
     public static void OpenConnectionWithDB() {
         try {
             connection = DriverManager.getConnection(URL, USER, PASSWORD);
-        }
-        catch (SQLException e) {
+        } catch (SQLException e) {
             e.printStackTrace();
         }
-    }
-
-    public static ResultSet SelectAllFromDB() throws SQLException {
-
-        // Устанавливаю соединение
-        Connection connection = DriverManager.getConnection(
-                "jdbc:mysql://127.0.0.1:3306/teletubetelegrambot",
-                "teletubetelegrambot",
-                "5FTj7SL.uvZ/0vWb");
-
-        // Оправляю запрос и получаю ответ
-        Statement statement = connection.createStatement();
-        ResultSet results = statement.executeQuery("SELECT * FROM test_users");
-
-//        System.out.println(results.getArray("Name"));
-
-        // Сохраняю результат запроса и закрываю потоки
-//        var output = results;
-//        results.close();
-//        statement.close();
-
-        // Возвращаю ответ в форме ResultSet
-        return results;
     }
 
     public static int SelectOrInsertChatIntoDB(User usr) {
@@ -57,8 +33,7 @@ public class ActionsWithDB {
             // Если в findUserResult нет следующей строки с ID, то добавить этого пользователя
             if (findUserResult.next()) {
                 output = findUserResult.getInt(1);
-            }
-            else {
+            } else {
                 String updateAndSelectQuery = "INSERT INTO Users(chat_id, First_name, Last_name, Username)\n"
                         + "VALUES ("
                         + usr.getId() + ","
@@ -75,7 +50,6 @@ public class ActionsWithDB {
             }
 
 
-
             // Выясняю ID только что добавленного пользователя
 //            String selectIdQuery = "SELECT ID FROM Users WHERE chat_id=" + usr.getId() + "LIMIT 1";
 //            ResultSet results = statement.executeQuery(selectIdQuery);
@@ -86,11 +60,9 @@ public class ActionsWithDB {
 
             // Закрываю потоки
             statement.close();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
-        }
-        finally {
+        } finally {
             return output;
         }
     }
@@ -118,9 +90,31 @@ public class ActionsWithDB {
 
             // Закрываю потоки
             statement.close();
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             e.printStackTrace();
+        }
+    }
+
+    public static ResultSet SelectVideosFromDB(){
+        ResultSet results = null;
+        try {
+            Statement statemant = connection.createStatement();
+
+            String query = "SELECT Videos.Name AS Name, " +
+                    "Videos.Link AS Link, " +
+                    "Videos.Width AS Width, " +
+                    "Videos.Height AS Height, " +
+                    "Videos.Duration AS Duration, " +
+                    "Users.First_Name AS FirstName, " +
+                    "Users.Last_Name AS LastName, " +
+                    "Users.Username AS Username " +
+                    "FROM Videos LEFT JOIN Users ON Videos.User_ID=Users.ID";
+            results = statemant.executeQuery(query);
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        finally {
+            return results;
         }
     }
 }
