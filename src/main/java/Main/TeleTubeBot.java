@@ -1,28 +1,24 @@
 package Main;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
+import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
 import org.telegram.telegrambots.meta.api.methods.send.SendMessage;
 import org.telegram.telegrambots.meta.api.methods.send.SendVideo;
-import org.telegram.telegrambots.meta.api.methods.updatingmessages.DeleteMessage;
 import org.telegram.telegrambots.meta.api.objects.InputFile;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.Update;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.ReplyKeyboardMarkup;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardButton;
-import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.KeyboardRow;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.InlineKeyboardMarkup;
+import org.telegram.telegrambots.meta.api.objects.replykeyboard.buttons.InlineKeyboardButton;
 import org.telegram.telegrambots.meta.exceptions.TelegramApiException;
 
 import java.io.File;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Random;
+import java.util.*;
 
 public class TeleTubeBot extends TelegramLongPollingBot {
 
-    // Метаданные
-    boolean isWaitingVideo = false;
+    Map<String, String> numberVideoLinkMap = new HashMap<String, String>();
 
     @Override
     public String getBotUsername() {
@@ -36,7 +32,7 @@ public class TeleTubeBot extends TelegramLongPollingBot {
 
     @Override
     public void onUpdateReceived(Update update) {
-        // Проверяем, содержит ли update сообщение
+        // Если update вызван сообщением пользователя
         if (update.hasMessage()) {
             Message msg = update.getMessage();                      // Сообщение update'а
             var usr = update.getMessage().getFrom();
@@ -50,18 +46,17 @@ public class TeleTubeBot extends TelegramLongPollingBot {
             if (msg.hasText()) {
                 switch(msg.getText()) {
                     case ("/start"):
-                        sendMsg.setText("Добро пожаловать! Выберите раздел в Меню.");
-                        setMainMenuReplyKeyboard(sendMsg);
+                        sendMsg.setText("Добро пожаловать! \u2728" +
+                                "\nС этим ботом ты можешь смотреть \uD83C\uDF7F, оценивать \uD83D\uDC4D и делиться своими видео \uD83C\uDFAC с пользователями со всего мира \uD83C\uDF0D!" +
+                                "\n\nВ боте доступны следующие команды:" +
+                                "\n/show_all_videos - Выбрать видео из списка" +
+                                "\n/upload_video - Загрузить свое видео");
                         break;
-                    case ("Случайное видео"):
-                        sendTeletubeVideo(usrId, "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\5791410976-20897428.mp4");
-                        break;
-                    case ("/uploadVideo"):
+                    case ("/upload_video"):
                         sendTextMessage(usrId, "Отправьте ваше видео сюда в чат, название к видео укажите в описании.");
-                        isWaitingVideo = true; // В isWaitingVideo станавливаю true, чтобы в следующем сообщении пользователя ждать видео
                         break;
-                    case ("/showAllVideos"):
-                        sendMsg.setText(makeVideoList());
+                    case ("/show_all_videos"):
+                        sendMsg = videoListWithButtonsMessage(usrId);
                         break;
                     default:
                         sendMsg.setText("Такой команды не существует. Лучше воспользуйтесь списком команд из Меню слева от поля ввода!");
@@ -69,8 +64,7 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                 }
             }
             // Если update не содержит текст, но содержит видео
-            else if (isWaitingVideo || msg.hasVideo()) {
-                isWaitingVideo = false;
+            else if (msg.hasVideo()) {
                 sendTextMessage(usrId, "Загружаю видео на сервер, подождите...");
 
                 // Выполняю скачивание пользовательского видео на сервер
@@ -93,10 +87,21 @@ public class TeleTubeBot extends TelegramLongPollingBot {
                     e.printStackTrace();
                 }
             }
+        }
+        // Если update вызван нажатием inline-кнопки
+        else if (update.hasCallbackQuery()) {
+            var usrId = update.getCallbackQuery().getFrom().getId();
+            String callbackData = update.getCallbackQuery().getData();
+            sendTeletubeVideo(usrId, numberVideoLinkMap.get(callbackData));
 
-            if (isWaitingVideo) {
-                isWaitingVideo = false;
-                sendTextMessage(usrId, "Видео не обнаржено");
+            // Отключаю анимацию загрузки у кнопки
+            AnswerCallbackQuery answerCallbackQuery = new AnswerCallbackQuery();
+            answerCallbackQuery.setCallbackQueryId(update.getCallbackQuery().getId());
+            try {
+                execute(answerCallbackQuery);
+            }
+            catch (TelegramApiException e) {
+                e.printStackTrace();
             }
         }
     }
@@ -121,38 +126,6 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         return sendOutMsg;
     }
 
-    public void setMainMenuReplyKeyboard(SendMessage sendMsg) {
-        // Создаем клавиатуру и привязываем к сообщению
-        ReplyKeyboardMarkup replyKeyboardMarkup = new ReplyKeyboardMarkup();
-        sendMsg.setReplyMarkup(replyKeyboardMarkup);
-        replyKeyboardMarkup.setSelective(true);
-        replyKeyboardMarkup.setResizeKeyboard(true);
-        replyKeyboardMarkup.setOneTimeKeyboard(true); // Setting false
-
-        // Создаем список строк клавиатуры
-        List<KeyboardRow> keyboard = new ArrayList<>();
-
-        // Добавляю кнопки в список
-        KeyboardRow keyboardRow1 = new KeyboardRow();
-        keyboardRow1.add(new KeyboardButton("Рекомендации"));
-        keyboard.add(keyboardRow1);
-
-        KeyboardRow keyboardRow2 = new KeyboardRow();
-        keyboardRow2.add(new KeyboardButton("Топ популярных видео"));
-        keyboard.add(keyboardRow2);
-
-        KeyboardRow keyboardRow3 = new KeyboardRow();
-        keyboardRow3.add(new KeyboardButton("Мои видео"));
-        keyboard.add(keyboardRow3);
-
-        KeyboardRow keyboardRow4 = new KeyboardRow();
-        keyboardRow4.add(new KeyboardButton("Случайное видео"));
-        keyboard.add(keyboardRow4);
-
-        // Устанавливаем список клавиатуре
-        replyKeyboardMarkup.setKeyboard(keyboard);
-    }
-
     public boolean downloadVideoIntoFileSystem(Message message) {
         try {
             // Загружаю видеофайл на сервер
@@ -163,11 +136,11 @@ public class TeleTubeBot extends TelegramLongPollingBot {
             // Получаю ID пользователя
             int userDBId = ActionsWithDB.SelectOrInsertChatIntoDB(message.getFrom());
 
-            String destinationFilePath = "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\" + userDBId + "\\" + generateString(12) + ".mp4";
+            String destinationFilePath = "C:\\Users\\komra\\IdeaProjects\\TeleTubeTelegramBot\\ExampleVideos\\" + userDBId + "\\" + generateRandomString(12) + ".mp4";
             downloadFile(sourceFilePath, new File(destinationFilePath));
 
             // Вношу запись о новом видео в базу данных
-            ActionsWithDB.AddNewVideoInfoIntoDB(message, destinationFilePath);
+            ActionsWithDB.InsertNewVideoInfoIntoDB(message, destinationFilePath);
 
             return true;
         }
@@ -177,6 +150,7 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         }
     }
 
+    // Создает и возвращает список всех видео в БД в формате string
     public String makeVideoList() {
         String outputText = "";
 
@@ -198,20 +172,62 @@ public class TeleTubeBot extends TelegramLongPollingBot {
 
     }
 
+    public SendMessage videoListWithButtonsMessage(Long chatId) {
+        SendMessage videoListMsg = new SendMessage();
+        videoListMsg.setChatId(chatId.toString());
+        videoListMsg.setText(makeVideoList());
+
+        InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup();
+        List<List<InlineKeyboardButton>> inlineRows = new ArrayList<>();
+
+        numberVideoLinkMap.clear();
+        // Работаю с БД
+        String outputText = "";
+        try {
+            ResultSet videosSet = ActionsWithDB.SelectVideosFromDB();
+
+            int videoNumber = 0;
+            while (videosSet.next()) {
+                videoNumber++;
+
+                // Создаю запись с названием видео в сообщении
+                outputText += videoNumber + ") " + videosSet.getString("Name") + " • " + videosSet.getString("FirstName") + " \"" + videosSet.getString("Username") + "\" " + videosSet.getString("LastName") + "\n";
+
+                // Добавляю ссылку на видео
+                numberVideoLinkMap.put(String.valueOf(videoNumber), videosSet.getString("Link"));
+
+                // Добавляю кнопку с номером видео к сообщению
+                InlineKeyboardButton inlineBtn = new InlineKeyboardButton();
+                inlineBtn.setText(String.valueOf(videoNumber));
+                inlineBtn.setCallbackData(String.valueOf(videoNumber));
+
+                List<InlineKeyboardButton> inlineRow = new ArrayList<>();
+                inlineRow.add(inlineBtn);
+
+                inlineRows.add(inlineRow);
+            }
+
+        }
+        catch (SQLException e) {
+            e.printStackTrace();
+        }
+        inlineKeyboard.setKeyboard(inlineRows);
+        videoListMsg.setReplyMarkup(inlineKeyboard);
+
+        return videoListMsg;
+    }
+
     public void sendTeletubeVideo(Long chatId, String filePath) {
 
         // Отправляю в чат сообщение о том, что видео готовиться к отправке
-        Message temporaryMsg = sendTextMessage(chatId, "Видео загружается для просмотра, подождите немного...");
+        sendTextMessage(chatId, "Видео загружается для просмотра, подождите немного...");
 
         // Загружаю видео с компьютера
         File file = new File(filePath);
         SendVideo sendVideo = new SendVideo();
         sendVideo.setChatId(chatId.toString());
         sendVideo.setVideo(new InputFile(file, file.getName()));
-
-//                sendVideo.setDuration();
-//                sendVideo.setWidth();
-//                sendVideo.setHeight();
+        sendVideo.setSupportsStreaming(true);
 
         // Отправляю видео
         try {
@@ -220,23 +236,9 @@ public class TeleTubeBot extends TelegramLongPollingBot {
         catch (TelegramApiException e) {
             throw new RuntimeException(e);
         }
-
-        // Удаляю из чата сообщение о подготовке видео
-        DeleteMessage deleteMsg = new DeleteMessage();
-        deleteMsg.setChatId(chatId.toString());
-        deleteMsg.setMessageId(temporaryMsg.getMessageId());
-        try {
-            execute(deleteMsg);
-        }
-        catch (TelegramApiException e) {
-            throw new RuntimeException(e);
-        }
-
-        // Отправляю сообщение, содержащие название видео
-        sendTextMessage(chatId, file.getName());
     }
 
-    private static String generateString(int length) {
+    private static String generateRandomString(int length) {
         Random rng = new Random();
 
         // Заполняю строку characters символами нижнего регистра

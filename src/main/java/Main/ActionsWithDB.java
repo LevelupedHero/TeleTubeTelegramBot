@@ -67,7 +67,7 @@ public class ActionsWithDB {
         }
     }
 
-    public static void AddNewVideoInfoIntoDB(Message message, String filePath) {
+    public static void InsertNewVideoInfoIntoDB(Message message, String filePath) {
         try {
             // Устанавливаю соединение
             Statement statement = connection.createStatement();
@@ -75,16 +75,13 @@ public class ActionsWithDB {
             int userID = SelectOrInsertChatIntoDB(message.getFrom());
 
             // Формулирую, оправляю запрос и получаю ответ
-            String insertVideoInfoQuery = "INSERT INTO Videos(File_id, Name, Link, Width, Height, Duration, User_id) VALUES ("
-                    + "'" + message.getVideo().getFileId() + "',"        // file_id
+            String insertVideoInfoQuery = "INSERT INTO Videos(Name, Link, Width, Height, Duration, User_id) VALUES ("
                     + "'" + message.getCaption() + "',"                  // Название
                     + "'" + filePath.replace('\\', '/') + "',"        // Ссылка в файловой системе
                     + "'" + message.getVideo().getWidth() + "',"        // Ширина
                     + "'" + message.getVideo().getHeight() + "',"        // Длина
                     + "'" + message.getVideo().getDuration() + "',"      // Продолжительность
                     + userID + ")";        // ID пользователя в БД
-
-            System.out.println(insertVideoInfoQuery);
 
             statement.executeUpdate(insertVideoInfoQuery);
 
