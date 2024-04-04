@@ -1,4 +1,5 @@
 package Main;
+import io.github.cdimascio.dotenv.Dotenv;
 import org.telegram.telegrambots.bots.TelegramLongPollingBot;
 import org.telegram.telegrambots.meta.api.methods.AnswerCallbackQuery;
 import org.telegram.telegrambots.meta.api.methods.GetFile;
@@ -18,16 +19,18 @@ import java.util.*;
 
 public class TeleTubeBot extends TelegramLongPollingBot {
 
+    Dotenv dotenv = Dotenv.configure().load();
+
     Map<String, String> numberVideoLinkMap = new HashMap<String, String>();
 
     @Override
     public String getBotUsername() {
-        return "TeleTube_videobot";
+        return dotenv.get("BOT_NAME");
     }
 
     @Override
     public String getBotToken() {
-        return "6728795326:AAGkHywo5jGTx92N-zNVgVvYLOyWRuxb0sM";
+        return dotenv.get("BOT_TOKEN");
     }
 
     @Override

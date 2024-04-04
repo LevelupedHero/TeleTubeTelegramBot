@@ -1,5 +1,6 @@
 package Main;
 
+import io.github.cdimascio.dotenv.Dotenv;
 import org.telegram.telegrambots.meta.api.objects.Message;
 import org.telegram.telegrambots.meta.api.objects.User;
 
@@ -7,15 +8,13 @@ import java.sql.*;
 
 public class ActionsWithDB {
 
-    private final static String URL = "jdbc:mysql://127.0.0.1:3306/teletubetelegrambot";
-    private final static String USER = "teletubetelegrambot";
-    private final static String PASSWORD = "5FTj7SL.uvZ/0vWb";
+    private static Dotenv dotenv = Dotenv.configure().load();
 
     private static Connection connection;
 
     public static void OpenConnectionWithDB() {
         try {
-            connection = DriverManager.getConnection(URL, USER, PASSWORD);
+            connection = DriverManager.getConnection(dotenv.get("DB_URL"), dotenv.get("DB_USER"), dotenv.get("DB_PASSWORD"));
         } catch (SQLException e) {
             e.printStackTrace();
         }
