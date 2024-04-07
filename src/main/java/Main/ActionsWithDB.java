@@ -33,15 +33,17 @@ public class ActionsWithDB {
             if (findUserResult.next()) {
                 output = findUserResult.getInt(1);
             } else {
-                String updateAndSelectQuery = "INSERT INTO Users(chat_id, First_name, Last_name, Username)\n"
+                String insertUserQuery = "INSERT INTO Users(chat_id, First_name, Last_name, Username) \n"
                         + "VALUES ("
                         + usr.getId() + ","
                         + "'" + usr.getFirstName() + "',"
                         + "'" + usr.getLastName() + "',"
-                        + "'" + usr.getUserName()
-                        + "');\n"
-                        + "SELECT ID FROM Users WHERE Chat_id=" + usr.getId() + " LIMIT 1;";
-                ResultSet findUserAgainResult = statement.executeQuery(updateAndSelectQuery);
+                        + "'" + usr.getUserName() + "'" +
+                        ");";
+                statement.executeUpdate(insertUserQuery);
+
+                // Запрашиваю User ID после добавления в БД
+                ResultSet findUserAgainResult = statement.executeQuery(findUserQuery);
 
                 // Преобразую ResultSet в int
                 findUserAgainResult.next();
